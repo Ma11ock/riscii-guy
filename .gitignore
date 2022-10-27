@@ -162,4 +162,6 @@ tags
 # Persistent undo
 [._]*.un~
 
+test/
+
 # End of https://www.toptal.com/developers/gitignore/api/ruby,emacs,vim,macos
