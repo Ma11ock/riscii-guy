@@ -1,0 +1,150 @@
+#+TITLE: RISCIIguy
+#+EMAIL: ryan@ryanmj.xyz
+#+AUTHOR: Ryan Jeffrey
+#+OPTIONS: num:nil
+
+* What
+This project is an experimental, proof-of-concept assembler for the
+RISCII. It is based off of the AVR assembler.
+
+See [[https://ryanmj.xyz/riscii][this page]] for in-depth description of the RISCII's instructions.
+
+* How
+
+RISCII instructions come in one of two formats:
+
+** =shortSource2= (register or short immediate)
+
+#+CAPTION: Format of a short-immediate instruction.
+| 7 bits | 1 bit | 5 bits | 5 bits | 1 bit   | 14 bits      |
+|--------+-------+--------+--------+---------+--------------|
+| opcode | SCC   | DEST   | rs1    | imm bit | shortSource2 |
+
+Where =shortSource2=  can be:
+
+
+#+CAPTION: shortSource2 format for register
+| 13th bit (IMM bit) | Bits 12-5 | Bits 4-0 |
+|--------------------+-----------+----------|
+|                  0 | <garbage> | rs2      |
+
+
+#+CAPTION: shortSource2 format for immediate
+| 13th bit (IMM bit) | Bits 12-0               |
+|--------------------+-------------------------|
+|                  1 | 13 bit signed immediate |
+
+- =opcode= is the instruction's code
+- =SCC= (Set condition code), if LOW means the instruction does not
+  set the condition codes. If HIGH the instruction will set the
+  condition codes according to the opcode
+- =DEST= is the destination register. One of the 32 available registers
+  in the register window
+- =rs1= is the first source register, usually the left operand in
+  an operation.
+- =imm bit= (Immediate Bit) if LOW, bits 12-5 are discarded and 4-0
+  are the second source register. If HIGH, then bits 12-0 are a *signed*
+  13 bit immediate.
+- =shortSource2= Can either be a *signed* 13 bit immediate or a source
+  register. Usually the right operand in an operation.
+
+** =imm19= Long Immediate format
+
+| 7 bits | 1 bit | 5 bits | 19 bits |
+|--------+-------+--------+---------|
+| opcode | SCC   | DEST   | imm19   |
+
+- =opcode= is the instruction's code
+- =SCC= (Set condition code), if LOW means the instruction does not
+  set the condition codes. If HIGH the instruction will set the
+  condition codes according to the opcode
+- =DEST= is the destination register. One of the 32 available registers
+  in the register window
+- =imm19= is an *unsigned* 19 bit immediate constant
+
+** How to represent instructions
+
+Below are some examples for how the instructions are accepted by
+the assembler.
+
+#+begin_src asm
+xor r3, r3, -1           ; Negate r3, r3 ← r3 ⊕ -1
+add r3, r3, 1            ; Add 1 to r3, r3 ← r3 + 1
+#+end_src
+
+This computes the two's complement of an integer. The SCC bit is OFF
+by default. 
+
+#+begin_src asm
+xor SCC_ON, r3, r3, -1           ; Negate r3, r3 ← r3 ⊕ -1
+add SCC_OFF, r3, r3, 1           ; Add 1 to r3, r3 ← r3 + 1, SCC 
+#+end_src
+
+This is the same operation as above, but with the SCC's turned on
+and off explicitly.
+
+** Instruction aliases
+
+Some instructions have aliases that make common tasks easier.
+
+** =cp rs, shortSource2=, Compare
+Real operation:
+#+begin_src asm
+sub SCC_ON, r0, rs, shortSource2 ; Subtract two operands to
+                                 ; generate conditon codes.
+                                 ; Write to r0 to discard result.
+#+end_src
+** =neg scc, rd, rs=, Negate
+Real operation:
+#+begin_src asm
+xor r0, rd,  rs, -1 ; XOR source by -1. rd ← rs ⊕ -1
+#+end_src
+
+SCC is optional.
+** =neg scc, rd=, Negate
+Real operation:
+#+begin_src asm
+xor r0, rd, rd, -1 ; XOR source by -1, rd ← rd ⊕ -1
+#+end_src
+
+SCC is optional.
+
+** Assembler directives
+
+*** =.equ= Numeric constants
+
+Allows the programmer to declare numeric constants
+
+Example:
+#+begin_src asm
+.equ SIGN_LOC = (1 << 31) ; The location of the sign bit for a
+                          ; 32 bit integer
+
+;; Set the sign bit to HIGH.
+or r3, r3, SIGN_LOC ; r3 ← r3 | SIGN_LOC
+#+end_src
+
+
+*** =.def= Register aliasing
+
+Allows the programmer to alias registers.
+
+Example:
+#+begin_src asm
+.def my_register = r3 ; my_register is now r3
+
+xor my_register, my_register, -1 ; r3 ← r3 ⊕ -1
+#+end_src
+
+*** =.org= Binary organization
+
+Sets the starting memory address for the following instructions
+or data.
+
+
+* Features Completeness
+| Feature              | State        |
+|----------------------+--------------|
+| Basic instructions   | Work started |
+| Instruction Aliases  | None         |
+| Assembler directives | None         |
